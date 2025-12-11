@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  ollama-server:
+    # Construye la imagen a partir del Dockerfile en el directorio actual
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ollama-server
+    restart: always
+    ports:
+      # Mapea el puerto del contenedor (11434) al puerto del host (usando la variable del .env)
+      - "${OLLAMA_PORT}:11434"
+    # Monta un volumen para persistir los modelos descargados (opcional pero recomendado)
+    volumes:
+      - ollama_models:/root/.ollama
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_local
+    restart: always
+    environment:
+      # Configuración de credenciales de n8n
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=${N8N_PORT}
+      - N8N_EMAIL=${N8N_EMAIL}
+      - N8N_PASSWORD=${N8N_PASSWORD}
+      # Importante: Usa el nombre del servicio Docker para conectar con Ollama
+      - N8N_DEFAULT_EMAIL=${N8N_EMAIL} # Solo si usas autenticación
+      - WEBHOOK_URL=http://${N8N_HOST}:${N8N_PORT}/
+      
+    ports:
+      # Mapea el puerto de n8n (5678) al host (usando la variable del .env)
+      - "${N8N_PORT}:${N8N_PORT}"
+    volumes:
+      # Persiste los datos de n8n y monta tus directorios de trabajo
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/.n8n/workflows 
+      - ./tools:/home/node/.n8n/tools
+    depends_on:
+      - ollama-server # Asegura que Ollama se inicie antes que n8n
+
+volumes:
+  ollama_models:
+  n8n_data:
